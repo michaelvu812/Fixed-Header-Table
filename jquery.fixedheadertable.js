@@ -39,6 +39,10 @@
     };
 
     var settings = {};
+    var body = undefined;
+    var header = undefined;
+    var footer = undefined;
+    var fixedLastY;
 
     // public methods
     var methods = {
@@ -332,23 +336,29 @@
         $self.bind('scroll', function() {
           if (settings.fixedColumns > 0) {
             var $fixedColumns = $wrapper.find('.fht-fixed-column');
-
-            $fixedColumns.find('.fht-tbody table')
-              .css({
-                  'margin-top': -$self.scrollTop()
-              });
+  
+            if (body === undefined) {
+              body = $fixedColumns.find('.fht-tbody table');
+            }
+            body.css({
+              'margin-top': -$self.scrollTop()
+            });
           }
 
-          $thead.find('table')
-            .css({
-              'margin-left': -this.scrollLeft
-            });
+          if (header === undefined) {
+            header = $thead.find('table');
+          }
+          header.css({
+            'margin-left': -this.scrollLeft
+          });
 
           if (settings.footer || settings.cloneHeadToFoot) {
-            $tfoot.find('table')
-              .css({
-                'margin-left': -this.scrollLeft
-              });
+            if (footer === undefined) {
+              footer = $tfoot.find('table');
+            }
+            footer.css({
+              'margin-left': -this.scrollLeft
+            });
           }
         });
       },
@@ -465,23 +475,35 @@
 
 
         // bind mousewheel events
-        var maxTop = $fixedColumn.find('.fht-tbody .fht-table').height() - $fixedColumn.find('.fht-tbody').height();
-        $fixedColumn.find('.fht-tbody .fht-table').bind('mousewheel', function(event, delta, deltaX, deltaY) {
-          if (deltaY == 0) {
+        $fixedColumn.find('.fht-tbody .fht-table').on('mousewheel', function(event) {
+          if (event.deltaY == 0) {
             return;
           }
-          var top = parseInt($(this).css('marginTop'), 10) + (deltaY > 0 ? 120 : -120);
-          if (top > 0) {
-            top = 0;
-          }
-          if (top < -maxTop) {
-            top = -maxTop;
-          }
-          $(this).css('marginTop', top);
-          $fixedBody.find('.fht-tbody').scrollTop(-top).scroll();
+  
+          var top = $fixedBody.find('.fht-tbody').scrollTop();
+          var scrollDistance = (-1 * event.deltaY) * event.deltaFactor;
+          var newTop = top + scrollDistance;
+  
+          $fixedBody.find('.fht-tbody').scrollTop(newTop).scroll();
+
           return false;
         });
+        
+        $fixedColumn.find('.fht-tbody .fht-table').bind('touchstart', function (e){
+            fixedLastY = e.originalEvent.touches[0].clientY;
+            e.preventDefault();
+        });
 
+        // get movement and scroll the same way
+        $fixedColumn.find('.fht-tbody .fht-table').bind('touchmove', function (e){
+            var currentY = e.originalEvent.touches[0].clientY;
+            delta = currentY - fixedLastY;
+            var top = $fixedBody.find('.fht-tbody').scrollTop();
+            top += delta * -1;
+            $fixedBody.find('.fht-tbody').scrollTop(top).scroll();
+            fixedLastY = currentY;
+            e.preventDefault();
+        });
 
         // set width of body table wrapper
         $fixedBody.css({
@@ -570,15 +592,15 @@
 
         tableProp.border = ($obj.find('th:first-child').outerWidth() - $obj.find('th:first-child').innerWidth()) / borderCollapse;
 
-        $obj.find('thead tr:first-child > *').each(function(index) {
+        $obj.find('thead tr:first-child > *:not([colspan])').each(function(index) {
           tableProp.thead[index] = $(this).width() + tableProp.border;
         });
 
-        $obj.find('tfoot tr:first-child > *').each(function(index) {
+        $obj.find('tfoot tr:first-child > *:not([colspan])').each(function(index) {
           tableProp.tfoot[index] = $(this).width() + tableProp.border;
         });
 
-        $obj.find('tbody tr:first-child > *').each(function(index) {
+        $obj.find('tbody tr:first-child > *:not([colspan])').each(function(index) {
           tableProp.tbody[index] = $(this).width() + tableProp.border;
         });
 
